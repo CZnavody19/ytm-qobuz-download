@@ -1,0 +1,4 @@
+ytmusicapi
+dotenv
+streamrip
+thefuzz

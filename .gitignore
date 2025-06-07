@@ -1,0 +1,6 @@
+.env
+oauth.json
+store
+downloads/
+__pycache__/
+ytmqobuz/
