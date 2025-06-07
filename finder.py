@@ -34,14 +34,17 @@ async def get_best_match(wanted, items):
     passed: list[tuple[int, int, int, int, int, int, bool]] = []
 
     for item in items:
-        titleScore = fuzz.token_set_ratio(wanted["title"], item["title"])
-        artistScore = fuzz.token_set_ratio(wanted["artists"][0]["name"], item["performer"]["name"]) # TODO: Handle multiple artists
-        durationDiff = abs(wanted["duration_seconds"] - item["duration"])
-        albumNameScore = fuzz.token_set_ratio(wanted["album"]["name"], item["album"]["title"])
-        highRes = item["hires"]
+        try:
+            titleScore = fuzz.token_set_ratio(wanted["title"], item["title"])
+            artistScore = fuzz.token_set_ratio(wanted["artists"][0]["name"], item["performer"]["name"]) # TODO: Handle multiple artists
+            durationDiff = abs(wanted["duration_seconds"] - item["duration"])
+            albumNameScore = fuzz.token_set_ratio(wanted["album"]["name"], item["album"]["title"])
+            highRes = item["hires"]
 
-        if (titleScore >= titleThreshold and artistScore >= artistThreshold and durationDiff <= durationThreshold and albumNameScore >= albumNameThreshold):
-            passed.append((item["id"], item["album"]["id"], titleScore, artistScore, durationDiff, albumNameScore, highRes))
+            if (titleScore >= titleThreshold and artistScore >= artistThreshold and durationDiff <= durationThreshold and albumNameScore >= albumNameThreshold):
+                passed.append((item["id"], item["album"]["id"], titleScore, artistScore, durationDiff, albumNameScore, highRes))
+        except:
+            continue
 
     if len(passed) == 0:
         return None

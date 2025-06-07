@@ -1,3 +1,4 @@
+from typing import Any
 from ytmusicapi import YTMusic, OAuthCredentials
 from dotenv import load_dotenv
 from streamrip.client import QobuzClient
@@ -5,7 +6,7 @@ from streamrip.config import Config
 from streamrip.media import PendingTrack, PendingAlbum, Track
 from streamrip.db import Dummy, Database
 from asyncio import run, gather
-from requests import get
+from requests import get, post
 
 from finder import get_best_match
 from utils import get_env_var, get_search_string
@@ -36,6 +37,7 @@ async def main(ytmusic: YTMusic, qobuz: QobuzClient, qobuzConfig: Config, store:
     db = Database(downloads=Dummy(), failed=Dummy())
 
     tracks: list[Track] = []
+    tracksStatus: list[tuple[Any, bool]] = []
 
     for item in playlist["tracks"]:
         if store.exists(item["videoId"]):
@@ -48,6 +50,8 @@ async def main(ytmusic: YTMusic, qobuz: QobuzClient, qobuzConfig: Config, store:
         match = await get_best_match(item, items)
 
         store.add(item["videoId"], match[0] if match else None)
+
+        tracksStatus.append((item, match is not None))
 
         if not match:
             print(f"No match found for {item['title']} by {item['artists'][0]['name']}.")
@@ -69,17 +73,37 @@ async def main(ytmusic: YTMusic, qobuz: QobuzClient, qobuzConfig: Config, store:
 
     await gather(*[track.rip() for track in tracks])
 
-    if get_env_var("ENABLE_PLEX_REFRESH").lower() != "true":
-        return
+    if get_env_var("ENABLE_PLEX_REFRESH").lower() == "true":
+        url = "{}://{}:{}/library/sections/{}/refresh".format(get_env_var("PLEX_SERVER_PROTOCOL"), get_env_var("PLEX_SERVER_URL"), get_env_var("PLEX_SERVER_PORT"), get_env_var("PLEX_LIBRARY_ID"))
+        params = {"X-Plex-Token": get_env_var("PLEX_TOKEN")}
+        response = get(url=url, params=params)
+        
+        if response.status_code == 200:
+            print("Plex library refresh initiated successfully.")
+        else:
+            print(f"Failed to initiate Plex library refresh. Status code: {response.status_code}, Response: {response.text}")
 
-    url = "{}://{}:{}/library/sections/{}/refresh".format(get_env_var("PLEX_SERVER_PROTOCOL"), get_env_var("PLEX_SERVER_URL"), get_env_var("PLEX_SERVER_PORT"), get_env_var("PLEX_LIBRARY_ID"))
-    params = {"X-Plex-Token": get_env_var("PLEX_TOKEN")}
-    response = get(url=url, params=params)
-    
-    if response.status_code == 200:
-        print("Plex library refresh initiated successfully.")
-    else:
-        print(f"Failed to initiate Plex library refresh. Status code: {response.status_code}, Response: {response.text}")
+    if get_env_var("ENABLE_DISCORD_NOTIFICATIONS").lower() == "true" and len(tracksStatus) > 0:
+        body = {
+            "embeds": [
+                {
+                    "title": "Download status",
+                    "fields": [
+                        {
+                            "name": "{} by {}".format(track[0]["title"], track[0]["artists"][0]["name"]),
+                            "value": "Downloaded" if track[1] else "Not downloaded",
+                            "inline": False
+                        } for track in tracksStatus
+                    ]
+                }
+            ]
+        }
+        response = post(url=get_env_var("DISCORD_WEBHOOK_URL"), json=body)
+
+        if response.ok:
+            print("Discord notification sent successfully.")
+        else:
+            print(f"Failed to send Discord notification. Status code: {response.status_code}, Response: {response.text}")
 
 async def run_main():
     ytmusic, qobuz, qobuzConfig, store = setup()
