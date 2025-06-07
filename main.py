@@ -74,7 +74,12 @@ async def main(ytmusic: YTMusic, qobuz: QobuzClient, qobuzConfig: Config, store:
 
     url = "{}://{}:{}/library/sections/{}/refresh".format(get_env_var("PLEX_SERVER_PROTOCOL"), get_env_var("PLEX_SERVER_URL"), get_env_var("PLEX_SERVER_PORT"), get_env_var("PLEX_LIBRARY_ID"))
     params = {"X-Plex-Token": get_env_var("PLEX_TOKEN")}
-    get(url=url, params=params)
+    response = get(url=url, params=params)
+    
+    if response.status_code == 200:
+        print("Plex library refresh initiated successfully.")
+    else:
+        print(f"Failed to initiate Plex library refresh. Status code: {response.status_code}, Response: {response.text}")
 
 async def run_main():
     ytmusic, qobuz, qobuzConfig, store = setup()
