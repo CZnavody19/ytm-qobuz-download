@@ -5,6 +5,7 @@ from streamrip.config import Config
 from streamrip.media import PendingTrack, PendingAlbum, Track
 from streamrip.db import Dummy, Database
 from asyncio import run, gather
+from requests import get
 
 from finder import get_best_match
 from utils import get_env_var, get_search_string
@@ -67,6 +68,13 @@ async def main(ytmusic: YTMusic, qobuz: QobuzClient, qobuzConfig: Config, store:
         tracks.append(track)
 
     await gather(*[track.rip() for track in tracks])
+
+    if get_env_var("ENABLE_PLEX_REFRESH").lower() != "true":
+        return
+
+    url = "{}://{}:{}/library/sections/{}/refresh".format(get_env_var("PLEX_SERVER_PROTOCOL"), get_env_var("PLEX_SERVER_URL"), get_env_var("PLEX_SERVER_PORT"), get_env_var("PLEX_LIBRARY_ID"))
+    params = {"X-Plex-Token": get_env_var("PLEX_TOKEN")}
+    get(url=url, params=params)
 
 async def run_main():
     ytmusic, qobuz, qobuzConfig, store = setup()
