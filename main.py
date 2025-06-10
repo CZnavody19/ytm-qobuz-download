@@ -72,6 +72,9 @@ async def main(ytmusic: YTMusic, qobuz: QobuzClient, qobuzConfig: Config, store:
 
         tracks.append(track)
 
+    if len(tracksStatus) == 0:
+        return
+
     try:
         await gather(*[track.rip() for track in tracks])
 
