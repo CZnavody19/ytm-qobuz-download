@@ -89,6 +89,7 @@ async def run_main():
 
     try:
         await main(ytmusic, qobuz, qobuzConfig, store)
+        store.save()
     except Exception as e:
         print(f"An error occurred: {e}")
         send_error_msg(str(e))
