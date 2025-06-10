@@ -1,4 +1,4 @@
-from thefuzz import process, fuzz
+from thefuzz import fuzz
 
 titleThreshold = 80
 artistThreshold = 80
