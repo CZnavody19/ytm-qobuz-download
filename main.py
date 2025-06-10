@@ -6,9 +6,10 @@ from streamrip.config import Config
 from streamrip.media import PendingTrack, PendingAlbum, Track
 from streamrip.db import Dummy, Database
 from asyncio import run, gather
-from requests import get, post
 
+from discord import send_error_msg, send_status_msg
 from finder import get_best_match
+from plex import refresh_library
 from utils import get_env_var, get_search_string
 from store import Store
 
@@ -71,39 +72,17 @@ async def main(ytmusic: YTMusic, qobuz: QobuzClient, qobuzConfig: Config, store:
 
         tracks.append(track)
 
-    await gather(*[track.rip() for track in tracks])
+    try:
+        await gather(*[track.rip() for track in tracks])
 
-    if get_env_var("ENABLE_PLEX_REFRESH").lower() == "true":
-        url = "{}://{}:{}/library/sections/{}/refresh".format(get_env_var("PLEX_SERVER_PROTOCOL"), get_env_var("PLEX_SERVER_URL"), get_env_var("PLEX_SERVER_PORT"), get_env_var("PLEX_LIBRARY_ID"))
-        params = {"X-Plex-Token": get_env_var("PLEX_TOKEN")}
-        response = get(url=url, params=params)
-        
-        if response.status_code == 200:
-            print("Plex library refresh initiated successfully.")
-        else:
-            print(f"Failed to initiate Plex library refresh. Status code: {response.status_code}, Response: {response.text}")
+        refresh_library()
 
-    if get_env_var("ENABLE_DISCORD_NOTIFICATIONS").lower() == "true" and len(tracksStatus) > 0:
-        body = {
-            "embeds": [
-                {
-                    "title": "Download status",
-                    "fields": [
-                        {
-                            "name": "{} by {}".format(track[0]["title"], track[0]["artists"][0]["name"]),
-                            "value": "Downloaded" if track[1] else "Not downloaded",
-                            "inline": False
-                        } for track in tracksStatus
-                    ]
-                }
-            ]
-        }
-        response = post(url=get_env_var("DISCORD_WEBHOOK_URL"), json=body)
-
-        if response.ok:
-            print("Discord notification sent successfully.")
-        else:
-            print(f"Failed to send Discord notification. Status code: {response.status_code}, Response: {response.text}")
+        send_status_msg(tracksStatus)
+    except Exception as e:
+        print(f"An error occurred during the download process: {e}")
+        send_error_msg(str(e))
+        send_status_msg(tracksStatus, error=True)
+        raise e
 
 async def run_main():
     ytmusic, qobuz, qobuzConfig, store = setup()
@@ -112,8 +91,8 @@ async def run_main():
         await main(ytmusic, qobuz, qobuzConfig, store)
     except Exception as e:
         print(f"An error occurred: {e}")
+        send_error_msg(str(e))
     finally:
-        store.save()
         await qobuz.session.close()
 
 if __name__ == "__main__":
