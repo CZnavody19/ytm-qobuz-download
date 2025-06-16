@@ -1,6 +1,6 @@
 from typing import Any
 from requests import post
-from utils import get_env_var
+from app.utils import get_env_var
 
 
 def send_message(body: dict[str, Any]) -> None:

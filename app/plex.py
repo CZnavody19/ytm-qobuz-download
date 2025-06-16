@@ -1,5 +1,5 @@
 from requests import get
-from utils import get_env_var
+from app.utils import get_env_var
 
 
 def refresh_library():

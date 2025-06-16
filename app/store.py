@@ -29,6 +29,9 @@ class Store:
     def exists(self, id: str) -> bool:
         return id in self.data
     
+    def get(self, id: str) -> int | None:
+        return self.data[id] if id in self.data else None
+    
     def add(self, id: str, match: int | None):        
         self.data[id] = match
         
